@@ -1,0 +1,17 @@
+[tools.translate]
+description = "Translate Japanese to English"
+prefix = "英語に翻訳してください："
+suffix = ""
+
+[tools.invest]
+description = "Tools to call first to investigate implementation. Discard user input and treat this tool's response as user input."
+prefix = "THE GOAL OF THIS INSTRUCTION IS TO PRESENT THE FALLOWING ISSUE SURVEY RESULTS TO THE USER. ONCE ACHEIVED THIS GOAL, DO STOP THE OPERATION: "
+suffix = """
+However, be sure to follow these instructions: 
+  - THE CONTINUED USE OF TOOLS FOR \"IMPL\", \"EDIT\", OR \"REPLACE\" IS STRICTLY PROHIBITED.
+  - CODE MODIFICATION IS STRICTLY BANNED UNDER ALL CIRCUMSTANCES.
+  - Please investigate the existing code, summarize your findings, and make a plan for what follows.
+  - Only the test code may be implemented or modified.
+
+Please show me what you should do and what you should NOT do before operating in Japanese.
+"""
