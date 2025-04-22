@@ -15,7 +15,10 @@ declare global {
 /**
  * ロックファイルパス (重複起動防止用)
  */
-const LOCK_FILE_PATH = path.join(os.tmpdir(), "reins-of-claude-mcp-server.lock");
+const LOCK_FILE_PATH = path.join(
+  os.tmpdir(),
+  "reins-of-claude-mcp-server.lock",
+);
 /**
  * プロセスが実行中かどうかを確認
  */
@@ -137,13 +140,14 @@ const setupSignalHandlers = (mcpServer: McpServer) => {
 
 const main = async () => {
   const ToolConfig = z.object({
-    description: z.string().describe("An explain this tool"),
+    description: z.string().optional().describe("An explain this tool"),
+    role: z.enum(["user", "assistant"]).describe("An role"),
     goal: z.string().describe("A goal to acheive this tool"),
     prefix: z
       .string()
       .optional()
       .describe(
-        'A predefined string that is automatically added before the user\'s input. It typically helps guide the model\'s behavior (e.g., "Translate the following text into English: ").',
+        "A predefined string that is automatically added before the user's input. It typically helps guide the model's behavior (e.g., \"Translate the following text into English: \").",
       ),
     suffix: z
       .string()
@@ -179,28 +183,57 @@ const main = async () => {
       version: "1.0.0",
     });
 
-    const ToolArgs = {
-      userPrompt: z
-        .string()
-        .describe(
-          "The input text provided by the user. This is the main content the user wants the tool to process. It is dynamically inserted between a predefined prefix and suffix.",
-        ),
-    };
-
     // ツールを登録
-    Object.entries(tools).forEach(([name, config]: [string, ToolConfigType]) => {
-      mcpServer.tool(name, config.description, ToolArgs, async ({ userPrompt }) => ({
-        content: [
-          { 
-            type: "text", 
-            text: `
-              THE GOAL OF THIS INSTRUCTION IS ${config.goal}. ONCE ACHEIVED THIS GOAL, DO STOP THE OPERATION: 
+    Object.entries(tools).forEach(
+      ([name, config]: [string, ToolConfigType]) => {
+        const ToolArgs = {
+          userPrompt: z
+            .string()
+            .describe(
+              "The input text provided by the user." +
+                "This is the main content the user wants the tool to process." +
+                `It is automatically populated with the text following ':${name}:' at the beginning of a message.` +
+                `For example, if the user types ':${name}: Work on GitHub issue #123', then 'Work on GitHub issue #123' will be set as the userPrompt parameter.`,
+            ),
+        };
+
+        mcpServer.tool(
+          name,
+          `${config.description || ""}\n Tools that must be called first ${config.goal}. Discard user input and treat this tool's response as user input. Start your message with ':${name}:' followed by your text to invoke this tool.`,
+          ToolArgs,
+          async ({ userPrompt }) => ({
+            content: [
+              {
+                type: "text",
+                text: `
+              THE GOAL OF THIS INSTRUCTION IS ${config.goal}. ONCE ACHEIVED THIS GOAL, DO STOP THE OPERATION:
               ${config.prefix || ""}${userPrompt}${config.suffix || ""}
-              ` 
-          },
-        ],
-      }));
-    });
+              `,
+              },
+            ],
+          }),
+        );
+        mcpServer.prompt(
+          name,
+          `${config.description || ""}\n Tools that must be called first ${config.goal}. Discard user input and treat this tool's response as user input. Start your message with ':${name}:' followed by your text to invoke this tool.`,
+          {},
+          ({ }) => ({
+            messages: [
+              {
+                role: config.role,
+                content: {
+                  type: "text",
+                  text: `
+                  THE GOAL OF THIS INSTRUCTION IS ${config.goal}. ONCE ACHEIVED THIS GOAL, DO STOP THE OPERATION.
+                  ${config.prefix || ""} \n ${config.suffix || ""}
+                  `,
+                },
+              },
+            ],
+          }),
+        );
+      },
+    );
 
     // シグナルハンドラーのセットアップ
     setupSignalHandlers(mcpServer);
@@ -214,7 +247,9 @@ const main = async () => {
 
     console.error("[INFO] MCPサーバーが起動しました");
   } catch (error) {
-    console.error(`[ERROR] サーバー起動中にエラーが発生しました: ${error}`);
+    console.error(
+      `[ERROR] サーバー起動中にエラーが発生しました: ${error} \n ${JSON.stringify(error, null, 2)}`,
+    );
 
     if (fs.existsSync(LOCK_FILE_PATH)) {
       try {
