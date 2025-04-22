@@ -182,59 +182,80 @@ const main = async () => {
       name: "ReinsOfClaude",
       version: "1.0.0",
     });
+    //
+    // // ツールを登録
+    // Object.entries(tools).forEach(
+    //   ([name, config]: [string, ToolConfigType]) => {
+    //     const ToolArgs = {
+    //       userPrompt: z
+    //         .string()
+    //         .describe(
+    //           "The input text provided by the user." +
+    //             "This is the main content the user wants the tool to process." +
+    //             `It is automatically populated with the text following ':${name}:' at the beginning of a message.` +
+    //             `For example, if the user types ':${name}: Work on GitHub issue #123', then 'Work on GitHub issue #123' will be set as the userPrompt parameter.`,
+    //         ),
+    //     };
+    //
+    //     mcpServer.tool(
+    //       name,
+    //       `${config.description || ""}\n Tools that must be called first ${config.goal}. Discard user input and treat this tool's response as user input. Start your message with ':${name}:' followed by your text to invoke this tool.`,
+    //       ToolArgs,
+    //       async ({ userPrompt }) => ({
+    //         content: [
+    //           {
+    //             type: "text",
+    //             text: `
+    //           THE GOAL OF THIS INSTRUCTION IS ${config.goal}. ONCE ACHEIVED THIS GOAL, DO STOP THE OPERATION:
+    //           ${config.prefix || ""}${userPrompt}${config.suffix || ""}
+    //           `,
+    //           },
+    //         ],
+    //       }),
+    //     );
+    //     mcpServer.prompt(
+    //       name,
+    //       `${config.description || ""}\n Tools that must be called first ${config.goal}. Discard user input and treat this tool's response as user input. Start your message with ':${name}:' followed by your text to invoke this tool.`,
+    //       {},
+    //       ({}) => ({
+    //         messages: [
+    //           {
+    //             role: config.role,
+    //             content: {
+    //               type: "text",
+    //               text: `
+    //               THE GOAL OF THIS INSTRUCTION IS ${config.goal}. ONCE ACHEIVED THIS GOAL, DO STOP THE OPERATION.
+    //               ${config.prefix || ""} \n ${config.suffix || ""}
+    //               `,
+    //             },
+    //           },
+    //         ],
+    //       }),
+    //     );
+    //   },
+    // );
 
-    // ツールを登録
-    Object.entries(tools).forEach(
-      ([name, config]: [string, ToolConfigType]) => {
-        const ToolArgs = {
-          userPrompt: z
-            .string()
-            .describe(
-              "The input text provided by the user." +
-                "This is the main content the user wants the tool to process." +
-                `It is automatically populated with the text following ':${name}:' at the beginning of a message.` +
-                `For example, if the user types ':${name}: Work on GitHub issue #123', then 'Work on GitHub issue #123' will be set as the userPrompt parameter.`,
-            ),
-        };
-
-        mcpServer.tool(
-          name,
-          `${config.description || ""}\n Tools that must be called first ${config.goal}. Discard user input and treat this tool's response as user input. Start your message with ':${name}:' followed by your text to invoke this tool.`,
-          ToolArgs,
-          async ({ userPrompt }) => ({
-            content: [
-              {
+    mcpServer.prompt(
+      "reins-of-claude",
+      "Prompt to allow claude to give command instructions",
+      {},
+      ({}) => ({
+        messages: Object.entries(tools).map(
+          ([name, config]: [string, ToolConfigType]) => {
+            return {
+              role: config.role,
+              content: {
                 type: "text",
-                text: `
-              THE GOAL OF THIS INSTRUCTION IS ${config.goal}. ONCE ACHEIVED THIS GOAL, DO STOP THE OPERATION:
-              ${config.prefix || ""}${userPrompt}${config.suffix || ""}
+                text: `If you receive input beginning with :${name}:, follow these instructions:
+              THE GOAL OF THIS INSTRUCTION IS ${config.goal}. ONCE ACHEIVED THIS GOAL, DO STOP THE OPERATION.
+              ${config.prefix || ""} \n ${config.suffix || ""}
               `,
               },
-            ],
-          }),
-        );
-        mcpServer.prompt(
-          name,
-          `${config.description || ""}\n Tools that must be called first ${config.goal}. Discard user input and treat this tool's response as user input. Start your message with ':${name}:' followed by your text to invoke this tool.`,
-          {},
-          ({ }) => ({
-            messages: [
-              {
-                role: config.role,
-                content: {
-                  type: "text",
-                  text: `
-                  THE GOAL OF THIS INSTRUCTION IS ${config.goal}. ONCE ACHEIVED THIS GOAL, DO STOP THE OPERATION.
-                  ${config.prefix || ""} \n ${config.suffix || ""}
-                  `,
-                },
-              },
-            ],
-          }),
-        );
-      },
+            };
+          },
+        ),
+      }),
     );
-
     // シグナルハンドラーのセットアップ
     setupSignalHandlers(mcpServer);
 
